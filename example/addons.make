@@ -1,0 +1,3 @@
+ofxOpenCvContrib
+ofxOpenCvSurfaceMatching
+ofxTbb
