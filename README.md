@@ -1,16 +1,12 @@
-# ofxOpenCvContrib
+# ofxOpenCvSurfaceMatching
 
-openFrameworks addon for using openCv's contrib modules.
+openFrameworks addon for using openCv's surface matching.
 
-There is no code in this addon, just the openCv libraries.
-This provides an easy and convenient way to add these libraries to your openFrameworks projects.
-
-Works on Macos and should work on linux.
-
-The macos libraries are already included. If you want to use it on Linux or update execute the install.sh script.
-
+## Working on macos, should work on Linux
 
 ## Dependencies
-* [ofxTbb](https://github.com/roymacdonald/ofxTbb)
- 
-On Macos at least, it seems like it needs the Intel Threading Building Blocks library. So you will need to download ofxTbb and put it in your addons folder. 
+Simply install the following addons in your openFrameworks addons folder as you would do with any other addon.
+
+* [ofxOpenCvContrib](https://github.com/roymacdonald/ofxOpenCvContrib) 
+* [ofxTbb](https://github.com/roymacdonald/ofxTbb) 
+
