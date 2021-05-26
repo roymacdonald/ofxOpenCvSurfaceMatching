@@ -17,14 +17,53 @@ public:
 	
 	void train(std::string modelPath);
 	
+	void trainAsync(std::string modelPath);
+	
 	void match(std::string scenePath);
 	
 	bool isTraining() const;
 	
+	glm::mat4 getPose(size_t index) const;
+	
+	size_t getNumPoses() const;
+	
+	ofEvent<void> trainingEndEvent;
+	
+	static ofMesh transformMeshAndSave(const ofMesh& mesh, glm::mat4 matrix, string savePath);
+	
 private:
 	std::atomic<bool> _bIsTraining;
+	
 	int64_t tick1, tick2;
 	
 	unique_ptr<cv::ppf_match_3d::PPF3DDetector> _detector = nullptr;
 	cv::Mat _modelMat;
+	
+	vector<glm::mat4> _poses;
+	
+	void _update(ofEventArgs&);
+//	ofEventListener updateListener;
+//	std::atomic<bool> _notifyEndEvent;
+	
+	void _train(std::string modelPath);
+
+	class ThreadHelper : public ofThread{
+	public:
+		ThreadHelper(ofxSurfaceMatching & sm, string _modelPath):SM(sm), modelPath(_modelPath){
+			startThread();
+		}
+		~ThreadHelper(){
+			if(isThreadRunning()) waitForThread(true);
+		}
+		virtual void threadedFunction() override;
+		ofxSurfaceMatching& SM;
+		string modelPath;
+	};
+	
+	bool removeThreadHelper();
+	
+	shared_ptr<ThreadHelper> threadHelper = nullptr;
+	
+	vector<string> transformedPaths;
+	
 };
