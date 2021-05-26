@@ -132,28 +132,24 @@ void ofxSurfaceMatching::trainAsync(std::string modelPath){
 	
 }
 void ofxSurfaceMatching::match(std::string scenePath){
+	
 	if(!_bIsTraining && _detector != nullptr){
 		
 		string sceneFileName = ofToDataPath(scenePath, true);
 
+		cout << "sceneFilePath: " << sceneFileName <<endl;
+		
 			// Read the scene
 			Mat pcTest = loadPLYSimple(sceneFileName.c_str(), 1);
-//			cout <<  "channels: " << pcTest.channels() << endl;
-//			cout <<  "rows: " << pcTest.rows  << endl;
-//			cout <<  "cols: " << pcTest.cols  << endl;
-//			cout <<  "depth: " << pcTest.depth() << endl;
-//			cout <<  "size: " << pcTest.size  << endl;
-//			cout <<  "dims: " << pcTest.dims  << endl;
-//
+
 			// Match the model to the scene and get the pose
 			ofLogVerbose("ofxSurfaceMatching::match") << "Starting matching...";
 		
 			vector<Pose3DPtr> results;
-//			TICK_1
+			TICK_1
 			_detector->match(pcTest, results, 1.0/40.0, 0.05);
-//			TICK_2
-		ofLogVerbose("ofxSurfaceMatching::match")  << "PPF Elapsed Time ";
-//		<< ELAPSED_TIME << " sec" ;
+			TICK_2
+		ofLogVerbose("ofxSurfaceMatching::match")  << "PPF Elapsed Time : "<< ELAPSED_TIME << " sec" ;
 
 			//check results size from match call above
 			size_t results_size = results.size();
@@ -176,37 +172,49 @@ void ofxSurfaceMatching::match(std::string scenePath){
 			ICP icp(100, 0.005f, 2.5f, 8);
 		
 		
-//			TICK_1
+			TICK_1
 			
 			// Register for all selected poses
 		ofLogVerbose("ofxSurfaceMatching::match") << "Performing ICP on " << N << " poses...";
 			icp.registerModelToScene(_modelMat, pcTest, resultsSub);
-//			TICK_2
+			TICK_2
 			
-//		ofLogVerbose("ofxSurfaceMatching::match") << "ICP Elapsed Time "; << ELAPSED_TIME << " sec";
+		ofLogVerbose("ofxSurfaceMatching::match") << "ICP Elapsed Time : " << ELAPSED_TIME << " sec";
 				 
 		_poses.clear();
 		_poses.resize(resultsSub.size());
-		transformedPaths.resize(resultsSub.size());
+		
 			cout << "Poses: " << endl;
-			// debug first five poses
+			
 			for (size_t i=0; i<resultsSub.size(); i++)
 			{
 				Pose3DPtr result = resultsSub[i];
 				cout << "Pose Result " << i << endl;
 				result->printPose();
 				fromCV2GLM(result->pose, _poses[i]);
-				cout << _poses[i] <<endl;
-//				if (i==0)
-				{
-//					transformMeshAndSave(const ofMesh& mesh, glm::mat4 matrix, string savePath){
-//					Mat pct = transformPCPose(_modelMat, result->pose);
-//					transformedPaths[i] = ofToDataPath("transformed_model_" + ofToString(i)+"_" + ofGetTimestampString() + ".ply", true);
-//					cout << "write PLY to "<< transformedPaths[i] << endl;
-//					writePLY(pct, transformedPaths[i].c_str());
-				}
 			}
-			
+	}
+}
+
+bool ofxSurfaceMatching::beginApplyingPose(ofCamera&cam, size_t poseIndex, ofRectangle viewport){
+	_bPoseWasApplied = false;
+	if(!isTraining() && getNumPoses() > 0){
+		ofPushMatrix();
+		ofLoadIdentityMatrix();
+		
+		ofSetMatrixMode(OF_MATRIX_PROJECTION);
+		ofLoadMatrix(cam.getProjectionMatrix(viewport.isEmpty()?ofRectangle(0, 0, ofGetWidth(), ofGetHeight()):viewport));
+		ofSetMatrixMode(OF_MATRIX_MODELVIEW);
+		ofLoadViewMatrix(cam.getModelViewMatrix()* getPose(poseIndex));
+		_bPoseWasApplied =true;
+		
+	}
+	return _bPoseWasApplied;
+}
+
+void ofxSurfaceMatching::endApplyingPose(){
+	if(_bPoseWasApplied){
+		ofPopMatrix();
 	}
 }
 
@@ -230,11 +238,6 @@ void ofxSurfaceMatching::_update(ofEventArgs&){
 	if(removeThreadHelper()){
 		ofNotifyEvent(trainingEndEvent, this);
 	}
-//	if(_notifyEndEvent){
-//		ofNotifyEvent(trainingEndEvent, this);
-//		_notifyEndEvent = false;
-//		updateListener.unsubscribe();
-//	}
 }
 
 //--------------------------------------------------------------

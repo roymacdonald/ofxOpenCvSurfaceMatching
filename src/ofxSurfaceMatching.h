@@ -31,6 +31,11 @@ public:
 	
 	static ofMesh transformMeshAndSave(const ofMesh& mesh, glm::mat4 matrix, string savePath);
 	
+	
+	bool beginApplyingPose(ofCamera&cam, size_t poseIndex =0, ofRectangle viewport = ofRectangle());
+	void endApplyingPose();
+	
+	
 private:
 	std::atomic<bool> _bIsTraining;
 	
@@ -42,9 +47,7 @@ private:
 	vector<glm::mat4> _poses;
 	
 	void _update(ofEventArgs&);
-//	ofEventListener updateListener;
-//	std::atomic<bool> _notifyEndEvent;
-	
+
 	void _train(std::string modelPath);
 
 	class ThreadHelper : public ofThread{
@@ -64,6 +67,6 @@ private:
 	
 	shared_ptr<ThreadHelper> threadHelper = nullptr;
 	
-	vector<string> transformedPaths;
+	bool _bPoseWasApplied = false;
 	
 };
