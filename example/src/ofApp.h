@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "ofxSurfaceMatching.h"
+//#include "ofxGrabCam.h"
 
 class ofApp : public ofBaseApp{
 
@@ -23,5 +24,25 @@ class ofApp : public ofBaseApp{
 		void gotMessage(ofMessage msg);
 
 	ofxSurfaceMatching SM;
+	
+    ofMesh modelMesh, sceneMesh;
+//    ofxGrabCam easyCam;
+	ofEasyCam easyCam;
+    ofLight    light;
+    bool bShowScene = true;
+	bool bShowModel = true;
+	
+    bool bUseMatrix = false;
+    int matrixIndex = 0;
+	
+	ofEventListener trainEndListener;
+	
+	string modelPath;
+	string scenePath;
+	
+	
+	void onTrainEnd();
+	
+	
 	
 };
