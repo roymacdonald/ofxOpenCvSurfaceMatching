@@ -112,11 +112,13 @@ ofxSurfaceMatching::ofxSurfaceMatching(){
 	
 }
 
-void ofxSurfaceMatching::train(std::string modelPath){
+void ofxSurfaceMatching::train(std::string modelPath, double relativeSamplingStep, const double relativeDistanceStep, const double numAngles){
+	_setTrainingParams( relativeSamplingStep, relativeDistanceStep, numAngles);
 	_train(modelPath);
 	ofNotifyEvent(trainingEndEvent, this);
 }
-void ofxSurfaceMatching::train(const ofMesh& model){
+void ofxSurfaceMatching::train(const ofMesh& model, double relativeSamplingStep, const double relativeDistanceStep, const double numAngles){
+	_setTrainingParams( relativeSamplingStep, relativeDistanceStep, numAngles);
 	_train(model);
 	ofNotifyEvent(trainingEndEvent, this);
 }
@@ -130,6 +132,7 @@ void ofxSurfaceMatching::_train(std::string modelPath){
 }
 
 void ofxSurfaceMatching::_train(const ofMesh & mesh){
+	_bIsTraining = true;
 	ofMeshToCvMat(mesh, _modelMat);
 	_train();
 }
@@ -140,7 +143,7 @@ void ofxSurfaceMatching::_train(){
 	ofLogVerbose("ofxSurfaceMatching::train") << "Training...";
 	TICK_1
 	
-	_detector = make_unique<ppf_match_3d::PPF3DDetector> (0.025, 0.05);
+	_detector = make_unique<ppf_match_3d::PPF3DDetector> (_relativeSamplingStep , _relativeDistanceStep, _numAngles);
 	_detector->trainModel(_modelMat);
 	
 	TICK_2
@@ -151,33 +154,39 @@ void ofxSurfaceMatching::_train(){
 
 }
 
-void ofxSurfaceMatching::trainAsync(std::string modelPath){
+void ofxSurfaceMatching::trainAsync(std::string modelPath, double relativeSamplingStep , const double relativeDistanceStep, const double numAngles){
 	if(!_bIsTraining && threadHelper == nullptr){
+		_setTrainingParams( relativeSamplingStep, relativeDistanceStep, numAngles);
 		threadHelper = make_shared<ThreadHelper>(*this, modelPath);
-	
-//		cout << "trainAsync\n";
 	}else{
 		ofLogWarning("ofxSurfaceMatching::trainAsync") << "can not train when there is another training still happening";
 	}
-	
 }
 
-void ofxSurfaceMatching::trainAsync(const ofMesh& model){
+void ofxSurfaceMatching::trainAsync(const ofMesh& model, double relativeSamplingStep , const double relativeDistanceStep, const double numAngles){
 	if(!_bIsTraining && threadHelper == nullptr){
+			_setTrainingParams( relativeSamplingStep, relativeDistanceStep, numAngles);
 			threadHelper = make_shared<ThreadHelper>(*this, model);
 		}else{
 			ofLogWarning("ofxSurfaceMatching::trainAsync") << "can not train when there is another training still happening";
 		}
 }
 
-void ofxSurfaceMatching::_match(const cv::Mat& pcTest){
+void ofxSurfaceMatching::_setTrainingParams( double relativeSamplingStep, const double relativeDistanceStep, const double numAngles){
+	_relativeSamplingStep = relativeSamplingStep;
+	_relativeDistanceStep = relativeDistanceStep;
+	_numAngles = numAngles;
+}
+
+
+void ofxSurfaceMatching::_match(const cv::Mat& pcTest, const double relativeSceneSampleStep, const double relativeSceneDistance){
 	if(!_bIsTraining && _detector != nullptr){
 	// Match the model to the scene and get the pose
 		ofLogVerbose("ofxSurfaceMatching::match") << "Starting matching...";
 	
 		vector<Pose3DPtr> results;
 		TICK_1
-		_detector->match(pcTest, results, 1.0/40.0, 0.05);
+		_detector->match(pcTest, results, relativeSceneSampleStep, relativeSceneDistance);
 		TICK_2
 	ofLogVerbose("ofxSurfaceMatching::match")  << "PPF Elapsed Time : "<< ELAPSED_TIME << " sec" ;
 
@@ -199,7 +208,12 @@ void ofxSurfaceMatching::_match(const cv::Mat& pcTest){
 		vector<Pose3DPtr> resultsSub(results.begin(),results.begin()+N);
 		
 		// Create an instance of ICP
-		ICP icp(100, 0.005f, 2.5f, 8);
+	
+		ICP icp(_icpIterations,
+				_icpTolerence,
+				_icpRejectionScale,
+				_icpNumLevels);
+		
 	
 	
 		TICK_1
@@ -235,20 +249,20 @@ void ofxSurfaceMatching::_match(const cv::Mat& pcTest){
 		}
 	}
 }
-void ofxSurfaceMatching::match(std::string scenePath){
+void ofxSurfaceMatching::match(std::string scenePath, const double relativeSceneSampleStep, const double relativeSceneDistance){
 	
 	if(!_bIsTraining && _detector != nullptr){
 		// Read the scene
 		Mat pcTest = loadPLYSimple(ofToDataPath(scenePath, true).c_str(), 1);
-		_match(pcTest);
+		_match(pcTest, relativeSceneSampleStep, relativeSceneDistance);
 	}
 }
-void ofxSurfaceMatching::match(const ofMesh& scene){
+void ofxSurfaceMatching::match(const ofMesh& scene, const double relativeSceneSampleStep, const double relativeSceneDistance){
 	
 	if(!_bIsTraining && _detector != nullptr){
 		cv::Mat pcTest;
 		ofMeshToCvMat(scene, pcTest);
-		_match(pcTest);
+		_match(pcTest, relativeSceneSampleStep, relativeSceneDistance);
 	}
 }
 
@@ -303,6 +317,13 @@ void ofxSurfaceMatching::_update(ofEventArgs&){
 	}
 }
 
+void ofxSurfaceMatching::setIcpParams(const int iterations, const float tolerence, const float rejectionScale, const int numLevels){
+	_icpIterations = iterations;
+	_icpTolerence = tolerence;
+	_icpRejectionScale = rejectionScale;
+	_icpNumLevels = numLevels;
+}
+
 //--------------------------------------------------------------
 void ofxSurfaceMatching::ThreadHelper::threadedFunction(){
 	if(isThreadRunning()){
@@ -326,24 +347,3 @@ bool ofxSurfaceMatching::removeThreadHelper(){
 }
 
 
-////compite normals
-//string modelFileName = (string)argv[1];
-//  string outputFileName = (string)argv[2];
-//  cv::Mat points, pointsAndNormals;
-//
-//  cout << "Loading points\n";
-//  cv::ppf_match_3d::loadPLYSimple(modelFileName.c_str(), 1).copyTo(points);
-//
-//  cout << "Computing normals\n";
-//  cv::Vec3d viewpoint(0, 0, 0);
-//  cv::ppf_match_3d::computeNormalsPC3d(points, pointsAndNormals, 6, false, viewpoint);
-//
-//  std::cout << "Writing points\n";
-//  cv::ppf_match_3d::writePLY(pointsAndNormals, outputFileName.c_str());
-//  //the following function can also be used for debugging purposes
-//  //cv::ppf_match_3d::writePLYVisibleNormals(pointsAndNormals, outputFileName.c_str());
-//
-//  std::cout << "Done\n";
-//  return 0;
-//}
-//
