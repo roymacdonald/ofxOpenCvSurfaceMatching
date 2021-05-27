@@ -16,14 +16,31 @@ public:
 	ofxSurfaceMatching();
 	
 	void train(std::string modelPath);
-	
+	void train(const ofMesh& model);
+
 	void trainAsync(std::string modelPath);
+	void trainAsync(const ofMesh& model);
 	
 	void match(std::string scenePath);
+	void match(const ofMesh& scene);
+	
 	
 	bool isTraining() const;
 	
-	glm::mat4 getPose(size_t index) const;
+	struct Pose{
+		double alpha = 0;
+		double residual = 0;
+		size_t modelIndex = 0;
+		size_t numVotes = 0;
+		double angle = 0;
+
+		glm::mat4 matrix;
+	};
+	
+	
+	glm::mat4 getPoseMatrix(size_t index) const;
+	
+	Pose getPose(size_t index) const;
 	
 	size_t getNumPoses() const;
 	
@@ -36,31 +53,43 @@ public:
 	void endApplyingPose();
 	
 	
+	
 private:
 	std::atomic<bool> _bIsTraining;
 	
 	int64_t tick1, tick2;
 	
 	unique_ptr<cv::ppf_match_3d::PPF3DDetector> _detector = nullptr;
+	
 	cv::Mat _modelMat;
 	
-	vector<glm::mat4> _poses;
+	vector<Pose> _poses;
 	
 	void _update(ofEventArgs&);
 
 	void _train(std::string modelPath);
-
+	void _train(const ofMesh & mesh);
+	void _train();
+	
+	void _match(const cv::Mat& pcTest);
+	
 	class ThreadHelper : public ofThread{
 	public:
 		ThreadHelper(ofxSurfaceMatching & sm, string _modelPath):SM(sm), modelPath(_modelPath){
 			startThread();
 		}
+		ThreadHelper(ofxSurfaceMatching & sm, const ofMesh& _mesh):SM(sm), modelPath(""), mesh(_mesh){
+			startThread();
+		}
+		
+		
 		~ThreadHelper(){
 			if(isThreadRunning()) waitForThread(true);
 		}
 		virtual void threadedFunction() override;
 		ofxSurfaceMatching& SM;
 		string modelPath;
+		ofMesh mesh;
 	};
 	
 	bool removeThreadHelper();
