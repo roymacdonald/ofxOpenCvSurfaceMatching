@@ -228,14 +228,14 @@ void ofxSurfaceMatching::_match(const cv::Mat& pcTest, const double relativeScen
 	_poses.clear();
 	_poses.resize(resultsSub.size());
 	
-		cout << "Poses: " << endl;
+//		cout << "Poses: " << endl;
 		
 		for (size_t i=0; i<resultsSub.size(); i++)
 		{
 			
 			Pose3DPtr result = resultsSub[i];
-			cout << "Pose Result " << i << endl;
-			result->printPose();
+//			cout << "Pose Result " << i << endl;
+//			result->printPose();
 			
 			fromCV2GLM(result->pose, _poses[i].matrix);
 			_poses[i].alpha = result->alpha;
