@@ -11,6 +11,13 @@
 #include "opencv2/surface_matching/ppf_helpers.hpp"
 #include "opencv2/core/utility.hpp"
 
+//Comment out the following if you dont want to use ofxPca for finding the best match
+#define USE_OFX_PCA
+
+#ifdef USE_OFX_PCA
+#include "ofxPCA.h"
+#endif
+
 class ofxSurfaceMatching{
 public:
 	ofxSurfaceMatching();
@@ -127,7 +134,33 @@ public:
 	static ofMesh transformMeshAndSave(const ofMesh& mesh, glm::mat4 matrix, string savePath);
 	
 	
+	///\set the maximum ammount of posses that will be processed by ICP.
+	void setMaxICPPoses(size_t maxPoses);
+	
+	///\get the maximum ammount of posses that will be processed by ICP.
+	size_t getMaxICPPoses() const;
+	
+	size_t getBestMatch() const;
+	
+	vector<glm::vec3> dots;
+	
+#ifdef USE_OFX_PCA
+	ofxPCA::Results modelPca;
+	ofxPCA::Results currentPca;
+	
+	void setFlipModelPcaVectors(bool bFlip);
+	bool isFlippingModelPcaVectors() const;
+	
+	void setFlipCurrentPcaVectors(bool bFlip);
+	bool isFlippingCurrentPcaVectors() const;
+	
+#endif
+	
+	double lastMatchDuration = 0;
+	
 private:
+	
+	
 	
 	void _setTrainingParams( double relativeSamplingStep, const double relativeDistanceStep, const double numAngles);
 	
@@ -184,5 +217,19 @@ private:
 	shared_ptr<ThreadHelper> threadHelper = nullptr;
 	
 	bool _bPoseWasApplied = false;
+	
+	size_t _maxPoses = 2;
+	
+#ifdef USE_OFX_PCA
+	void _findBestMatch();
+//	ofxPCA::Results modelPca;
+//	ofxPCA::Results currentPca;
+	size_t bestMatchIndex = 0;
+	
+	bool _bFlipCurrentPcaVecs = false;
+	bool _bFlipModelPcaVecs = false;
+#endif
+	
+
 	
 };

@@ -17,17 +17,17 @@ using namespace ppf_match_3d;
 #define ELAPSED_TIME (double)(tick2-tick1)/ cv::getTickFrequency()
 
 void fromCV2GLM(const cv::Matx44d& cvmat, glm::mat4& glmmat) {
-    if (cvmat.cols != 4 || cvmat.rows != 4 ) {
-        cout << "Matrix conversion error!" << endl;
-        return;
-    }
+	if (cvmat.cols != 4 || cvmat.rows != 4 ) {
+		cout << "Matrix conversion error!" << endl;
+		return;
+	}
 	for (int i = 0; i < 16; i++) {
 		glm::value_ptr( glmmat )[i] = (float)cvmat.val[i];
 	}
 	glmmat = glm::transpose(glmmat);
 	
 	
-//    memcpy(glm::value_ptr(*glmmat), cvmat.data, 16 * sizeof(float));
+	//    memcpy(glm::value_ptr(*glmmat), cvmat.data, 16 * sizeof(float));
 }
 
 void ofMeshToCvMat(const ofMesh & mesh, cv::Mat & mat){
@@ -38,11 +38,11 @@ void ofMeshToCvMat(const ofMesh & mesh, cv::Mat & mat){
 	glm::vec3 v, n;
 	for (size_t i = 0; i < mesh.getNumVertices(); i++)
 	{
-	   float* data = mat.ptr<float>(i);
-		 v = mesh.getVertex(i);
-		 data[0] = v.x;
-		 data[1] = v.y;
-		 data[2] = v.z;
+		float* data = mat.ptr<float>(i);
+		v = mesh.getVertex(i);
+		data[0] = v.x;
+		data[1] = v.y;
+		data[2] = v.z;
 		if(bHasNormals){
 			n = glm::normalize(mesh.getNormal(i));
 			data[3] = n.x;
@@ -62,7 +62,7 @@ void ofMeshToCvMat(const ofMesh & mesh, cv::Mat & mat){
 
 
 ofMesh ofxSurfaceMatching::transformMeshAndSave(const ofMesh& mesh, glm::mat4 matrix, string savePath){
-		
+	
 	glm::mat3 R(matrix);
 	glm::vec3 t(matrix[3]);
 	
@@ -71,35 +71,35 @@ ofMesh ofxSurfaceMatching::transformMeshAndSave(const ofMesh& mesh, glm::mat4 ma
 	ofMesh tempMesh;
 	
 	for (size_t i = 0; i < mesh.getVertices().size(); i++)
-	   {
+	{
 		const auto& v = mesh.getVertices()[i];
-		   
-		 glm::vec4 p = matrix * glm::vec4(v, 1);
-	
-		 // p2[3] should normally be 1
-		   if(!ofIsFloatEqual(p.w, 1.0f)){
-			   cout << "P.w: " << p.w <<endl;
-		   }
-		 if (fabs(p.w) > std::numeric_limits<float>::epsilon()){
-			 tempMesh.addVertex((1.0 / p.w) * glm::vec3(p));
-		 }
-
-		 // If the point cloud has normals,
-		 // then rotate them as well
-		 if (mesh.hasNormals() && mesh.getNormals().size() > i)
-		 {
-			 glm::vec3 n = mesh.getNormals()[i];
-			 glm::vec3 n2 = R * n;
-
-		   double nNorm = glm::l2Norm(n2);
-
-		   if (nNorm > std::numeric_limits<float>::epsilon() )
-		   {
-			   tempMesh.addNormal( (1.0 / nNorm) * n2);
-		   }
-		 }
-	   }
-	cout << "centroid: " << tempMesh.getCentroid() << endl;
+		
+		glm::vec4 p = matrix * glm::vec4(v, 1);
+		
+		// p2[3] should normally be 1
+		if(!ofIsFloatEqual(p.w, 1.0f)){
+			cout << "P.w: " << p.w <<endl;
+		}
+		if (fabs(p.w) > std::numeric_limits<float>::epsilon()){
+			tempMesh.addVertex((1.0 / p.w) * glm::vec3(p));
+		}
+		
+		// If the point cloud has normals,
+		// then rotate them as well
+		if (mesh.hasNormals() && mesh.getNormals().size() > i)
+		{
+			glm::vec3 n = mesh.getNormals()[i];
+			glm::vec3 n2 = R * n;
+			
+			double nNorm = glm::l2Norm(n2);
+			
+			if (nNorm > std::numeric_limits<float>::epsilon() )
+			{
+				tempMesh.addNormal( (1.0 / nNorm) * n2);
+			}
+		}
+	}
+//	cout << "centroid: " << tempMesh.getCentroid() << endl;
 	if(!savePath.empty()){
 		tempMesh.save(savePath);
 	}
@@ -127,19 +127,29 @@ void ofxSurfaceMatching::_train(std::string modelPath){
 	_bIsTraining = true;
 	
 	_modelMat = loadPLYSimple(ofToDataPath(modelPath, true).c_str(), 1);
+	#ifdef USE_OFX_PCA
+		modelPca = ofxPCA::analyze(_modelMat);
+		if(_bFlipModelPcaVecs)modelPca.flipVecs();
+//		cout << "modelPca: " << modelPca.toString() << endl;
+	#endif
 	_train();
-
+	
 }
 
 void ofxSurfaceMatching::_train(const ofMesh & mesh){
 	_bIsTraining = true;
 	ofMeshToCvMat(mesh, _modelMat);
+	#ifdef USE_OFX_PCA
+		modelPca = ofxPCA::analyze(mesh);
+		if(_bFlipModelPcaVecs)modelPca.flipVecs();
+//		cout << "modelPca: " << modelPca.toString() << endl;
+	#endif
 	_train();
 }
 
 void ofxSurfaceMatching::_train(){
 	_bIsTraining = true;
-		
+	
 	ofLogVerbose("ofxSurfaceMatching::train") << "Training...";
 	TICK_1
 	
@@ -149,9 +159,9 @@ void ofxSurfaceMatching::_train(){
 	TICK_2
 	
 	ofLogVerbose("ofxSurfaceMatching::train")  << "Training complete in "	<< ELAPSED_TIME << " sec";
-	
-	_bIsTraining = false;
 
+	_bIsTraining = false;
+	
 }
 
 void ofxSurfaceMatching::trainAsync(std::string modelPath, double relativeSamplingStep , const double relativeDistanceStep, const double numAngles){
@@ -165,11 +175,11 @@ void ofxSurfaceMatching::trainAsync(std::string modelPath, double relativeSampli
 
 void ofxSurfaceMatching::trainAsync(const ofMesh& model, double relativeSamplingStep , const double relativeDistanceStep, const double numAngles){
 	if(!_bIsTraining && threadHelper == nullptr){
-			_setTrainingParams( relativeSamplingStep, relativeDistanceStep, numAngles);
-			threadHelper = make_shared<ThreadHelper>(*this, model);
-		}else{
-			ofLogWarning("ofxSurfaceMatching::trainAsync") << "can not train when there is another training still happening";
-		}
+		_setTrainingParams( relativeSamplingStep, relativeDistanceStep, numAngles);
+		threadHelper = make_shared<ThreadHelper>(*this, model);
+	}else{
+		ofLogWarning("ofxSurfaceMatching::trainAsync") << "can not train when there is another training still happening";
+	}
 }
 
 void ofxSurfaceMatching::_setTrainingParams( double relativeSamplingStep, const double relativeDistanceStep, const double numAngles){
@@ -178,75 +188,119 @@ void ofxSurfaceMatching::_setTrainingParams( double relativeSamplingStep, const 
 	_numAngles = numAngles;
 }
 
+void fromCVPose(const vector<Pose3DPtr>& cvPoses, vector<ofxSurfaceMatching::Pose>  & poses){
+	poses.resize(cvPoses.size());
+	
+	for (size_t i=0; i<cvPoses.size(); i++)
+	{
+		
+		Pose3DPtr result = cvPoses[i];
+		//			cout << "Pose Result " << i << endl;
+		//			result->printPose();
+		
+		fromCV2GLM(result->pose, poses[i].matrix);
+		poses[i].alpha = result->alpha;
+		poses[i].residual = result->residual;
+		poses[i].modelIndex = result->modelIndex;
+		poses[i].numVotes = result->numVotes;
+		poses[i].angle = result->angle;
+		
+	}
+}
+
 
 void ofxSurfaceMatching::_match(const cv::Mat& pcTest, const double relativeSceneSampleStep, const double relativeSceneDistance){
 	if(!_bIsTraining && _detector != nullptr){
-	// Match the model to the scene and get the pose
-		ofLogVerbose("ofxSurfaceMatching::match") << "Starting matching...";
-	
+		// Match the model to the scene and get the pose
+//		ofLogVerbose("ofxSurfaceMatching::match") << "Starting matching...";
+//
 		vector<Pose3DPtr> results;
-		TICK_1
+//		TICK_1
 		_detector->match(pcTest, results, relativeSceneSampleStep, relativeSceneDistance);
-		TICK_2
-	ofLogVerbose("ofxSurfaceMatching::match")  << "PPF Elapsed Time : "<< ELAPSED_TIME << " sec" ;
-
+//		TICK_2
+//		ofLogVerbose("ofxSurfaceMatching::match")  << "PPF Elapsed Time : "<< ELAPSED_TIME << " sec" ;
+		
 		//check results size from match call above
 		size_t results_size = results.size();
-		ofLogVerbose("ofxSurfaceMatching::match")  << "Number of matching poses: " << results_size;
+//		ofLogVerbose("ofxSurfaceMatching::match")  << "Number of matching poses: " << results_size;
 		if (results_size == 0) {
 			ofLogVerbose("ofxSurfaceMatching::match") << "No matching poses found. Exiting.";
 			return;
 		}
-
+//		cout << " Num Votes "<< endl<< endl;
+//		for(auto& r: results){
+//			cout << r->numVotes << endl;
+//		}
+//		cout << " alpha "<< endl<< endl;
+//		for(auto& r: results){
+//			cout << r->alpha << endl;
+//		}
+//		cout << " residual "<< endl<< endl;
+//		for(auto& r: results){
+//			cout << r->residual << endl;
+//		}
+//		cout << " angle "<< endl<< endl;
+//		for(auto& r: results){
+//			cout << r->angle << endl;
+//		}
+		
 		// Get only first N results - but adjust to results size if num of results are less than that specified by N
-		size_t N = 2;
+		size_t N = _maxPoses;
 		if (results_size < N) {
 			ofLogVerbose("ofxSurfaceMatching::match") << "Reducing matching poses to be reported (as specified in code): "
 			<< N << " to the number of matches found: " << results_size ;
 			N = results_size;
 		}
+		
+		
+		
 		vector<Pose3DPtr> resultsSub(results.begin(),results.begin()+N);
 		
 		// Create an instance of ICP
-	
+		
 		ICP icp(_icpIterations,
 				_icpTolerence,
 				_icpRejectionScale,
 				_icpNumLevels);
 		
-	
-	
-		TICK_1
+		
+		
+//		TICK_1
 		
 		// Register for all selected poses
-	ofLogVerbose("ofxSurfaceMatching::match") << "Performing ICP on " << N << " poses...";
+//		ofLogVerbose("ofxSurfaceMatching::match") << "Performing ICP on " << N << " poses...";
 		icp.registerModelToScene(_modelMat, pcTest, resultsSub);
-		TICK_2
 		
-	ofLogVerbose("ofxSurfaceMatching::match") << "ICP Elapsed Time : " << ELAPSED_TIME << " sec";
-			 
-	_poses.clear();
-	_poses.resize(resultsSub.size());
-	
-//		cout << "Poses: " << endl;
+//#ifdef USE_OFX_PCA
+//		currentPca = ofxPCA::analyze(pcTest);
+//		_findBestMatch();
+//#endif
+//		TICK_2
 		
-		for (size_t i=0; i<resultsSub.size(); i++)
-		{
-			
-			Pose3DPtr result = resultsSub[i];
-//			cout << "Pose Result " << i << endl;
-//			result->printPose();
-			
-			fromCV2GLM(result->pose, _poses[i].matrix);
-			_poses[i].alpha = result->alpha;
-			_poses[i].residual = result->residual;
-			_poses[i].modelIndex = result->modelIndex;
-			_poses[i].numVotes = result->numVotes;
-			_poses[i].angle = result->angle;
-			
-			
-			
-		}
+//		ofLogVerbose("ofxSurfaceMatching::match") << "ICP Elapsed Time : " << ELAPSED_TIME << " sec";
+		
+		fromCVPose(resultsSub, _poses);
+		
+//		_poses.clear();
+//		_poses.resize(resultsSub.size());
+//
+//		//		cout << "Poses: " << endl;
+//
+//		for (size_t i=0; i<resultsSub.size(); i++)
+//		{
+//
+//			Pose3DPtr result = resultsSub[i];
+//			//			cout << "Pose Result " << i << endl;
+//			//			result->printPose();
+//
+//			fromCV2GLM(result->pose, _poses[i].matrix);
+//			_poses[i].alpha = result->alpha;
+//			_poses[i].residual = result->residual;
+//			_poses[i].modelIndex = result->modelIndex;
+//			_poses[i].numVotes = result->numVotes;
+//			_poses[i].angle = result->angle;
+//
+//		}
 	}
 }
 void ofxSurfaceMatching::match(std::string scenePath, const double relativeSceneSampleStep, const double relativeSceneDistance){
@@ -255,14 +309,30 @@ void ofxSurfaceMatching::match(std::string scenePath, const double relativeScene
 		// Read the scene
 		Mat pcTest = loadPLYSimple(ofToDataPath(scenePath, true).c_str(), 1);
 		_match(pcTest, relativeSceneSampleStep, relativeSceneDistance);
+		#ifdef USE_OFX_PCA
+				currentPca = ofxPCA::analyze(pcTest);
+				if(_bFlipCurrentPcaVecs)currentPca.flipVecs();
+//		cout << "currentPca: " << currentPca.toString() << endl;
+				_findBestMatch();
+		#endif
 	}
 }
 void ofxSurfaceMatching::match(const ofMesh& scene, const double relativeSceneSampleStep, const double relativeSceneDistance){
 	
 	if(!_bIsTraining && _detector != nullptr){
+		TICK_1
 		cv::Mat pcTest;
 		ofMeshToCvMat(scene, pcTest);
 		_match(pcTest, relativeSceneSampleStep, relativeSceneDistance);
+		#ifdef USE_OFX_PCA
+				currentPca = ofxPCA::analyze(scene);
+				if(_bFlipCurrentPcaVecs)currentPca.flipVecs();
+//				cout << "currentPca: " << currentPca.toString() << endl;
+				_findBestMatch();
+		#endif
+		TICK_2
+		lastMatchDuration = ELAPSED_TIME;
+		
 	}
 }
 
@@ -275,7 +345,7 @@ bool ofxSurfaceMatching::beginApplyingPose(ofCamera&cam, size_t poseIndex, ofRec
 		ofSetMatrixMode(OF_MATRIX_PROJECTION);
 		ofLoadMatrix(cam.getProjectionMatrix(viewport.isEmpty()?ofRectangle(0, 0, ofGetWidth(), ofGetHeight()):viewport));
 		ofSetMatrixMode(OF_MATRIX_MODELVIEW);
-		ofLoadViewMatrix(cam.getModelViewMatrix()* getPoseMatrix(poseIndex));
+		ofLoadViewMatrix(cam.getModelViewMatrix()*  getPoseMatrix(poseIndex));
 		_bPoseWasApplied =true;
 		
 	}
@@ -345,5 +415,74 @@ bool ofxSurfaceMatching::removeThreadHelper(){
 	}
 	return false;
 }
+
+//--------------------------------------------------------------
+void ofxSurfaceMatching::setMaxICPPoses(size_t maxPoses){
+	_maxPoses = maxPoses;
+}
+//--------------------------------------------------------------
+size_t ofxSurfaceMatching::getMaxICPPoses() const{
+	return _maxPoses;
+}
+
+//--------------------------------------------------------------
+size_t ofxSurfaceMatching::getBestMatch() const{
+#ifdef USE_OFX_PCA
+	return bestMatchIndex;
+#else
+	ofLogVerbose("ofxSurfaceMatching::getBestMatch()", "Not using ofxPCA, so this function will always return 0");
+	return 0;
+#endif
+}
+
+#ifdef USE_OFX_PCA
+//--------------------------------------------------------------
+void ofxSurfaceMatching::_findBestMatch(){
+	
+	dots.resize(getNumPoses());
+	auto dot0 = - std::numeric_limits<float>().max();
+	
+	for(int i = 0; i < getNumPoses(); i++){
+		auto transformedPca = modelPca;
+		auto matrix = getPose(i).matrix;
+		
+		
+		for(auto& v:transformedPca.vecs){
+			v = matrix * glm::vec4(v, 0);
+		}
+		
+		for(int k = 0;k < 3; k++){
+			dots[i][k] = glm::dot(currentPca.vecs[k], transformedPca.vecs[k]);
+		}
+		if(dots[i].x > 0 && dots[i].y>0 && (dots[i].x * dots[i].y) > dot0){
+			dot0 = dots[i].x * dots[i].y;
+			bestMatchIndex = i;
+		}
+	}
+	cout << "Best match index : " << bestMatchIndex << endl;
+}
+
+
+//--------------------------------------------------------------
+void ofxSurfaceMatching::setFlipModelPcaVectors(bool bFlip){
+	_bFlipModelPcaVecs = bFlip;
+}
+//--------------------------------------------------------------
+bool ofxSurfaceMatching::isFlippingModelPcaVectors() const{
+	return _bFlipModelPcaVecs;
+}
+
+//--------------------------------------------------------------
+void ofxSurfaceMatching::setFlipCurrentPcaVectors(bool bFlip){
+	_bFlipCurrentPcaVecs = bFlip;
+}
+
+//--------------------------------------------------------------
+bool ofxSurfaceMatching::isFlippingCurrentPcaVectors() const{
+
+	return _bFlipCurrentPcaVecs;
+	
+}
+#endif
 
 
